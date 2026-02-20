@@ -9,6 +9,17 @@ import {
 import path from "path";
 import fs from "fs";
 import { getTimestampedFileName } from "@/lib/utils";
+import pdfParse from "pdf-parse";
+
+async function extractPdfText(filePath: string): Promise<string | undefined> {
+  try {
+    const buffer = fs.readFileSync(filePath);
+    const parsed = await pdfParse(buffer);
+    return parsed.text?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export const POST = async (req: NextRequest) => {
   const session = await auth();
@@ -33,11 +44,17 @@ export const POST = async (req: NextRequest) => {
     const resumeId = (formData.get("id") as string) ?? null;
     let fileId: string | undefined =
       (formData.get("fileId") as string) ?? undefined;
+
+    let extractedText: string | undefined;
     if (file && file.name) {
       const uploadDir = path.join(dataPath, "files", "resumes");
       const timestampedFileName = getTimestampedFileName(file.name);
       filePath = path.join(uploadDir, timestampedFileName);
       await uploadFile(file, uploadDir, filePath);
+
+      if (path.extname(file.name).toLowerCase() === ".pdf") {
+        extractedText = await extractPdfText(filePath);
+      }
     }
 
     if (resumeId && title) {
@@ -51,7 +68,8 @@ export const POST = async (req: NextRequest) => {
         title,
         fileId,
         file?.name,
-        filePath
+        filePath,
+        extractedText,
       );
       return NextResponse.json(res, { status: 200 });
     }
@@ -59,7 +77,8 @@ export const POST = async (req: NextRequest) => {
     const response = await createResumeProfile(
       title,
       file.name ?? null,
-      filePath
+      filePath,
+      extractedText,
     );
     return NextResponse.json(response, { status: 201 });
   } catch (error) {

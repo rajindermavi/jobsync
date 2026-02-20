@@ -200,21 +200,26 @@ export const preprocessResume = async (
 ): Promise<PreprocessingResult> => {
   try {
     // Convert resume object to raw text
-    const rawText = await convertResumeToText(resume);
-    // Quick validation - fail fast if obviously invalid
+    let rawText = await convertResumeToText(resume);
+    // Fall back to PDF extracted text if structured fields are too sparse
     if (!rawText || rawText.trim().length < MIN_CHAR_COUNT) {
-      const charCount = rawText?.trim().length || 0;
-      return {
-        success: false,
-        error: {
-          code: charCount === 0 ? "NO_CONTENT" : "TOO_SHORT",
-          message:
-            charCount === 0
-              ? "Resume appears to be empty"
-              : `Resume is too short (${charCount} characters, minimum ${MIN_CHAR_COUNT} required)`,
-          details: { characterCount: charCount },
-        },
-      };
+      const fallback = resume.File?.extractedText?.trim();
+      if (fallback && fallback.length >= MIN_CHAR_COUNT) {
+        rawText = fallback;
+      } else {
+        const charCount = rawText?.trim().length || 0;
+        return {
+          success: false,
+          error: {
+            code: charCount === 0 ? "NO_CONTENT" : "TOO_SHORT",
+            message:
+              charCount === 0
+                ? "Resume appears to be empty"
+                : `Resume is too short (${charCount} characters, minimum ${MIN_CHAR_COUNT} required)`,
+            details: { characterCount: charCount },
+          },
+        };
+      }
     }
 
     // Apply normalization pipeline

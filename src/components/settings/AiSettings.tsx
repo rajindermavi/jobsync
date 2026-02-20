@@ -30,13 +30,6 @@ interface OllamaModelResponse {
   }[];
 }
 
-interface OllamaRunningModelResponse {
-  models: {
-    name: string;
-    model: string;
-  }[];
-}
-
 interface DeepseekModelResponse {
   object: string;
   data: {
@@ -69,12 +62,11 @@ function AiSettings() {
     setRunningModelName("");
     setRunningModelError("");
 
-    // Check if the selected model is running (only for Ollama)
+    // Check if the selected model is installed (only for Ollama)
     if (selectedModel.provider === AiProvider.OLLAMA) {
       const result = await checkIfModelIsRunning(model, selectedModel.provider);
       if (result.isRunning && result.runningModelName) {
         setRunningModelName(result.runningModelName);
-        // Keep the model alive indefinitely
         await keepModelAlive(result.runningModelName);
       } else if (result.error) {
         setRunningModelError(result.error);
@@ -118,7 +110,7 @@ function AiSettings() {
     setIsLoadingModels(true);
     setFetchError("");
     try {
-      const response = await fetch("http://localhost:11434/api/tags");
+      const response = await fetch("/api/ai/ollama/tags");
       if (!response.ok) {
         if (selectedModel.provider === AiProvider.OLLAMA) {
           setFetchError(
@@ -131,8 +123,8 @@ function AiSettings() {
       const modelNames = data.models.map((model) => model.name);
       setOllamaModels(modelNames);
 
-      // Fetch and auto-select running model
-      await fetchRunningModel();
+      // Auto-select and verify the saved model if it exists in the installed list
+      await checkSavedModel(modelNames);
     } catch (error) {
       console.error("Error fetching Ollama models:", error);
       if (selectedModel.provider === AiProvider.OLLAMA) {
@@ -147,8 +139,7 @@ function AiSettings() {
 
   const keepModelAlive = async (modelName: string) => {
     try {
-      // Send a request to keep the model loaded for 1 hour
-      await fetch("http://localhost:11434/api/generate", {
+      await fetch("/api/ai/ollama/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -156,7 +147,7 @@ function AiSettings() {
         body: JSON.stringify({
           model: modelName,
           prompt: "",
-          keep_alive: "1h", // Keep loaded for 1 hour
+          keep_alive: "1h",
           stream: false,
         }),
       });
@@ -165,52 +156,16 @@ function AiSettings() {
     }
   };
 
-  const fetchRunningModel = async () => {
+  const checkSavedModel = async (installedModels: string[]) => {
     setRunningModelError("");
     setRunningModelName("");
-    try {
-      const response = await fetch("http://localhost:11434/api/ps");
-      if (!response.ok) {
-        if (selectedModel.provider === AiProvider.OLLAMA) {
-          setRunningModelError(
-            "No model is currently running. Please start a model first.",
-          );
-        }
-        return;
-      }
-      const data: OllamaRunningModelResponse = await response.json();
-      if (data.models && data.models.length > 0) {
-        // Auto-select the first running model
-        const runningModelName = data.models[0].name;
-        setSelectedModel({
-          provider: AiProvider.OLLAMA,
-          model: runningModelName,
-        });
-        // Verify the model is running using shared utility
-        const result = await checkIfModelIsRunning(
-          runningModelName,
-          AiProvider.OLLAMA,
-        );
-        if (result.isRunning && result.runningModelName) {
-          setRunningModelName(result.runningModelName);
-          await keepModelAlive(result.runningModelName);
-        } else if (result.error) {
-          setRunningModelError(result.error);
-        }
-      } else {
-        if (selectedModel.provider === AiProvider.OLLAMA) {
-          setRunningModelError(
-            "No model is currently running. Please run the ollama model first.",
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching running model:", error);
-      if (selectedModel.provider === AiProvider.OLLAMA) {
-        setRunningModelError(
-          "No model is currently running. Please run the ollama model first.",
-        );
-      }
+
+    const savedModel = selectedModel.model;
+    if (!savedModel) return;
+
+    if (installedModels.includes(savedModel)) {
+      setRunningModelName(savedModel);
+      await keepModelAlive(savedModel);
     }
   };
 
@@ -379,7 +334,7 @@ function AiSettings() {
           {runningModelName && (
             <div className="flex items-center gap-1 text-green-600 text-sm mt-2">
               <CheckCircle className="h-4 w-4 flex-shrink-0" />
-              <span>{runningModelName} is running</span>
+              <span>{runningModelName} is available</span>
             </div>
           )}
           {runningModelError && (
@@ -394,8 +349,6 @@ function AiSettings() {
           onClick={saveModelSettings}
           disabled={
             !selectedModel.model ||
-            (selectedModel.provider === AiProvider.OLLAMA &&
-              !runningModelName) ||
             isLoadingModels ||
             isSaving
           }

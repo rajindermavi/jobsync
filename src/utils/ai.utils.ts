@@ -12,7 +12,7 @@ export interface ModelCheckResult {
 }
 
 /**
- * Check if an Ollama model is currently running
+ * Check if an Ollama model is installed and available
  * @param modelName - The name of the model to check
  * @param provider - The AI provider (only checks for Ollama)
  * @returns ModelCheckResult with isRunning status and optional error message
@@ -34,9 +34,8 @@ export const checkIfModelIsRunning = async (
   }
 
   try {
-    // Check if Ollama service is accessible
-    const response = await fetch("http://localhost:11434/api/ps", {
-      signal: AbortSignal.timeout(5000), // 5 second timeout
+    const response = await fetch("/api/ai/ollama/tags", {
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
@@ -48,52 +47,53 @@ export const checkIfModelIsRunning = async (
     }
 
     const data = await response.json();
+    const installed = data.models ?? [];
 
-    if (!data.models || data.models.length === 0) {
+    if (installed.length === 0) {
       return {
         isRunning: false,
-        error: `No Ollama model is currently running. Please start ${modelName} using: ollama run ${modelName}`,
+        error: `No Ollama models installed. Pull one with: ollama pull ${modelName}`,
       };
     }
 
-    const isRunning = data.models.some((m: any) => m.name === modelName);
+    const isInstalled = installed.some((m: any) => m.name === modelName);
 
-    if (!isRunning) {
+    if (!isInstalled) {
       return {
         isRunning: false,
-        error: `${modelName} is not currently running. Please run the model first.`,
+        error: `${modelName} is not installed. Run: ollama pull ${modelName}`,
       };
     }
 
     return { isRunning: true, runningModelName: modelName };
   } catch (error) {
-    console.error("Error checking if model is running:", error);
+    console.error("Error checking Ollama model:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return {
       isRunning: false,
-      error: `Cannot connect to Ollama service. Please make sure Ollama is running. Error: ${errorMessage}`,
+      error: `Cannot connect to Ollama service. Error: ${errorMessage}`,
     };
   }
 };
 
 /**
- * Fetch list of all running Ollama models
- * @returns Array of model names currently running
+ * Fetch list of all installed Ollama models
+ * @returns Array of installed model names
  */
 export const fetchRunningModels = async (): Promise<{
   models: string[];
   error?: string;
 }> => {
   try {
-    const response = await fetch("http://localhost:11434/api/ps", {
+    const response = await fetch("/api/ai/ollama/tags", {
       signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
       return {
         models: [],
-        error: "Failed to fetch running models. Make sure Ollama is running.",
+        error: "Failed to fetch Ollama models. Make sure Ollama is running.",
       };
     }
 
@@ -101,7 +101,7 @@ export const fetchRunningModels = async (): Promise<{
     const models = data.models?.map((m: any) => m.name) || [];
     return { models };
   } catch (error) {
-    console.error("Error fetching running models:", error);
+    console.error("Error fetching Ollama models:", error);
     return {
       models: [],
       error: "Cannot connect to Ollama service.",

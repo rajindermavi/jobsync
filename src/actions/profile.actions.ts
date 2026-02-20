@@ -185,7 +185,8 @@ export const updateContactInfo = async (
 export const createResumeProfile = async (
   title: string,
   fileName: string,
-  filePath?: string
+  filePath?: string,
+  extractedText?: string,
 ): Promise<any | undefined> => {
   try {
     const user = await getCurrentUser();
@@ -220,7 +221,7 @@ export const createResumeProfile = async (
               profileId: profile!.id,
               title,
               FileId: fileName
-                ? await createFileEntry(fileName, filePath)
+                ? await createFileEntry(fileName, filePath, extractedText)
                 : null,
             },
           })
@@ -232,7 +233,7 @@ export const createResumeProfile = async (
                   {
                     title,
                     FileId: fileName
-                      ? await createFileEntry(fileName, filePath)
+                      ? await createFileEntry(fileName, filePath, extractedText)
                       : null,
                   },
                 ],
@@ -249,13 +250,15 @@ export const createResumeProfile = async (
 
 const createFileEntry = async (
   fileName: string | undefined,
-  filePath: string | undefined
+  filePath: string | undefined,
+  extractedText?: string,
 ) => {
   const newFileEntry = await prisma.file.create({
     data: {
       fileName: fileName!,
       filePath: filePath!,
       fileType: "resume",
+      extractedText,
     },
   });
   return newFileEntry.id;
@@ -266,13 +269,14 @@ export const editResume = async (
   title: string,
   fileId?: string,
   fileName?: string,
-  filePath?: string
+  filePath?: string,
+  extractedText?: string,
 ): Promise<any | undefined> => {
   try {
     let resolvedFileId = fileId;
 
     if (!fileId && fileName && filePath) {
-      resolvedFileId = await createFileEntry(fileName, filePath);
+      resolvedFileId = await createFileEntry(fileName, filePath, extractedText);
     }
 
     if (resolvedFileId) {

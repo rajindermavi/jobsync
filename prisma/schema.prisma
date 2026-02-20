@@ -63,12 +63,13 @@ model Resume {
 }
 
 model File {
-  id         String   @id @default(uuid())
-  fileName   String
-  filePath   String
-  fileType   String
-  uploadedAt DateTime @default(now())
-  Resume     Resume?
+  id            String   @id @default(uuid())
+  fileName      String
+  filePath      String
+  fileType      String
+  uploadedAt    DateTime @default(now())
+  extractedText String?
+  Resume        Resume?
 }
 
 model ResumeSection {
