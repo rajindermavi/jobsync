@@ -146,6 +146,89 @@ You must add your valid API key in the env file, also please make sure deepseek 
 DEEPSEEK_API_KEY=your-deepseek-api-key-here
 ```
 
+### HTTP API
+
+JobSync exposes a simple HTTP API for adding jobs programmatically (e.g. from a Python script).
+
+#### Setup
+
+Add `INTERNAL_API_KEY` to your `.env` file with any secret string:
+
+```sh
+INTERNAL_API_KEY=your-secret-key
+```
+
+#### POST /api/jobs
+
+Creates a new job, equivalent to adding one via the My Jobs page.
+
+**Request**
+
+```
+POST http://localhost:3000/api/jobs
+Authorization: Bearer your-secret-key
+Content-Type: application/json
+```
+
+```json
+{
+  "title": "Software Engineer",
+  "company": "Acme Corp",
+  "location": "Remote",
+  "type": "FT",
+  "status": "draft",
+  "source": "linkedin",
+  "jobDescription": "We are looking for...",
+  "salaryRange": "100k-120k",
+  "dueDate": "2026-04-15",
+  "jobUrl": "https://example.com/job",
+  "applied": false
+}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `title` | yes | Job title string — created automatically if new |
+| `company` | yes | Company name — created automatically if new |
+| `jobDescription` | yes | Min 10 characters |
+| `type` | yes | `FT` (Full Time), `PT` (Part Time), `C` (Contract) |
+| `status` | yes | `draft`, `applied`, `interview`, `offer`, `rejected`, `expired`, `archived` |
+| `source` | yes | `linkedin`, `indeed`, `monster`, `glassdoor`, `careerpage`, `google`, `ziprecruiter`, `jobstreet`, `other` — or any custom string |
+| `location` | no | Location string — created automatically if new |
+| `salaryRange` | no | Free-form string |
+| `dueDate` | no | ISO date string e.g. `"2026-04-15"` |
+| `dateApplied` | no | ISO date string |
+| `jobUrl` | no | URL to the job posting |
+| `applied` | no | Boolean, defaults to `false` |
+
+**Response**
+
+```json
+{ "success": true, "job": { "id": "...", ... } }
+```
+
+**Python example**
+
+```python
+import requests
+
+resp = requests.post(
+    "http://localhost:3000/api/jobs",
+    headers={"Authorization": "Bearer your-secret-key"},
+    json={
+        "title": "Software Engineer",
+        "company": "Acme Corp",
+        "location": "Remote",
+        "type": "FT",
+        "status": "draft",
+        "source": "linkedin",
+        "jobDescription": "We are looking for a software engineer...",
+        "jobUrl": "https://example.com/job",
+    },
+)
+print(resp.json())
+```
+
 ### Note
 
 - If you are updating from an old version and already logged in, please try logging out and login again.
