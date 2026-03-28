@@ -109,7 +109,7 @@ export const POST = async (req: NextRequest) => {
         jobSourceId: sourceRecord.id,
         salaryRange: salaryRange ?? "",
         createdAt: new Date(),
-        dueDate: dueDate ? new Date(dueDate) : null,
+        dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         appliedDate: dateApplied ? new Date(dateApplied) : null,
         description: jobDescription,
         jobType: type,
